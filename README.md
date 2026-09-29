@@ -4,7 +4,9 @@
 
 English · [Türkçe](.github/readme/README.tr.md) · [简体中文](.github/readme/README.zh-CN.md) · [Español](.github/readme/README.es.md) · [Português (BR)](.github/readme/README.pt-BR.md)
 
-<!-- badges -->
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Node >=22](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json) [![GitHub tag](https://img.shields.io/github/v/tag/canerinali/rig-replay)](https://github.com/canerinali/rig-replay/tags) [![GitHub stars](https://img.shields.io/github/stars/canerinali/rig-replay?style=social)](https://github.com/canerinali/rig-replay)
+
+Repository: https://github.com/canerinali/rig-replay
 
 <!-- demo GIF: add .github/assets/demo.gif here once it is recorded -->
 
