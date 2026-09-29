@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { Command, Option } from "commander";
+import { writeFile } from "node:fs/promises";
+import { buildReport } from "./index.js";
 import { OptionsError, resolveOptions, type RawOptions } from "./options.js";
 
 const program = new Command();
@@ -20,10 +22,13 @@ program
   .option("--prices <file.json>", "override the price table used for estimated cost")
   .option("--redact", "replace prompt and command text with length placeholders (paths are kept)", false)
   .addOption(new Option("--now <iso>", "fixed 'now' for deterministic runs").hideHelp())
-  .action((raw: RawOptions) => {
+  .action(async (raw: RawOptions) => {
     try {
       const opts = resolveOptions(raw);
-      process.stdout.write(JSON.stringify(opts, null, 2) + "\n");
+      const data = await buildReport(opts);
+      const json = JSON.stringify(data, null, 2) + "\n";
+      if (opts.out) await writeFile(opts.out, json);
+      else process.stdout.write(json);
     } catch (e) {
       if (e instanceof OptionsError) {
         process.stderr.write(`rig-replay: ${e.message}\n`);
