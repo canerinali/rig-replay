@@ -212,3 +212,23 @@ crashes. Consider skipping lines above a limit (e.g. 64 MB) with a parser note.
 ## Open High/Medium
 
 None. M1 and M2 are fixed in `a817212`. No High findings.
+
+## Re-verification (2026-09-29)
+
+Independent re-check of `a817212` by the reviewer: built `dist/`, reran the original proof-of-concept inputs, changed no code.
+
+- **M1: verified fixed.** A symlink planted at the default `./rig-replay-report.html`, at `--json --out out.json`, and a dangling symlink at `--out` are all refused with exit 1 and `refusing to write through symlink`. The link targets were not modified and no dangling target was created. New and pre-existing (0644) report files end up mode 0600.
+- **M2: verified fixed.** The synthetic log with `Authorization: Bearer sk-live-...`, `ghp_...` and `sk-ant-...` in the prompt and command, run without `--redact`, produces HTML and `--json` output that contain none of the three tokens. The HTML data block has no `command` field, and stderr prints the `--redact` note. The XSS payloads in the same log still render inert (2 `<script>` elements, no raw `<`, `>`, U+2028 or U+2029 in the data block). `scrubSecrets` stayed under 20 ms on 100k-character adversarial inputs.
+- **L1: verified fixed.** A header with 40k/160k/1M trailing spaces now parses in 0/1/2 ms (was 0.9 s / 15 s for 40k/160k).
+- **L4: verified fixed.** A Codex `cli_version` containing ESC/OSC/BEL/CSI (C1 0x9b) and a newline reaches the stderr parser note as `?` characters. Stderr contains 0 control characters apart from the line separators.
+- `npm test`: 18 files, 114 tests passed. `tsc --noEmit` clean. `npm audit` and `npm audit --omit=dev`: 0 vulnerabilities.
+
+Residual (Low, best-effort scrubbing, not blocking): `scrubSecrets` does not mask credentials that do not use a known token shape or a `NAME=value` form:
+- URL userinfo (`postgres://user:pass@host`)
+- `curl -u user:pass`
+- `mysql -pPASS`
+- `--password VALUE` or `docker login -p VALUE` (space-separated)
+- `aws configure set aws_secret_access_key VALUE`
+- Stripe `sk_live_`/`rk_live_` keys
+
+Suggested additions to `TOKEN_PATTERNS`/`scrubSecrets` in `src/redact.ts`: `://[^/\s:@]+:[^@\s/]+@` (mask the password part), `(--?(?:password|passwd|token|secret|api-?key)[= ]|-p)\S+` for flags, and `\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}`. `--redact` remains the reliable control for shared reports. Open High/Medium after re-verification: none.
