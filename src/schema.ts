@@ -89,12 +89,6 @@ export interface CostLine {
   priceKey?: string;
 }
 
-export interface ModelTotals {
-  byModel: Record<string, Tokens>;
-  /** Agent that produced each model's tokens (for cache billing rules). */
-  agentByModel: Record<string, Agent>;
-}
-
 export interface ReportData {
   version: 1;
   generatedAt: string;
@@ -142,17 +136,6 @@ export function addTokens(target: Tokens, add: Tokens): void {
   target.output += add.output;
   target.cacheRead += add.cacheRead;
   target.cacheWrite += add.cacheWrite;
-}
-
-export function addToTotals(totals: ModelTotals, model: string, agent: Agent, t: Tokens): void {
-  const cur = totals.byModel[model] ?? emptyTokens();
-  addTokens(cur, t);
-  totals.byModel[model] = cur;
-  totals.agentByModel[model] = agent;
-}
-
-export function emptyTotals(): ModelTotals {
-  return { byModel: {}, agentByModel: {} };
 }
 
 // ---------- Loose zod schemas for the log lines we read ----------
