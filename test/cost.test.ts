@@ -59,6 +59,8 @@ describe("cost", () => {
     expect(key("gpt-5-codex")).toBe("gpt-5");
     expect(key("gpt-5-mini")).toBe("gpt-5-mini");
     expect(key("gpt-5.4-mini")).toBe("gpt-5.4-mini");
+    expect(key("gpt-6-astra")).toBe("gpt-6-astra");
+    expect(key("gpt-6.1-sol")).toBe("gpt-6.1-sol");
     expect(DEFAULT_PRICES.asOf).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 

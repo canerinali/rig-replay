@@ -31,6 +31,11 @@ const KNOWN_SKIPPED = new Set([
   "bridge-session",
   "atis-latch",
   "summary",
+  "cost-state",
+  "file-history-delta",
+  "relocated",
+  "permission-mode",
+  "ai-title",
 ]);
 
 const EDIT_TOOLS = new Set(["Edit", "MultiEdit", "Write", "NotebookEdit"]);
