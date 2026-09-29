@@ -6,6 +6,7 @@ import { mergeResults } from "./merge.js";
 import type { ResolvedOptions } from "./options.js";
 import { parseClaudeFile } from "./parsers/claude.js";
 import { parseCodexFile } from "./parsers/codex.js";
+import { redactReport } from "./redact.js";
 import { resolveTarget } from "./repo.js";
 import { addTokens, emptyTokens, type ParseResult, type ReportData, type Tokens } from "./schema.js";
 
@@ -71,7 +72,7 @@ export async function buildReport(opts: ResolvedOptions): Promise<ReportData> {
   const firstMs = events.length ? events[0]!.tsMs : 0;
   const lastMs = events.length ? events[events.length - 1]!.tsMs : 0;
 
-  return {
+  const data: ReportData = {
     version: 1,
     generatedAt: new Date(opts.nowMs).toISOString(),
     repo: { root: target.mainRoot, worktrees: target.worktrees.map((w) => w.root) },
@@ -98,4 +99,5 @@ export async function buildReport(opts: ResolvedOptions): Promise<ReportData> {
     },
     notes,
   };
+  return opts.redact ? redactReport(data) : data;
 }
