@@ -12,21 +12,23 @@ browser and is often shared with other people.
 
 | ID | Severity | Title | Status |
 | -- | -------- | ----- | ------ |
-| M1 | Medium | Report is written through symlinks; default output path lives in the (possibly untrusted) cwd | Open |
-| M2 | Medium | Secrets in shell commands and prompts are embedded in the report by default | Open |
-| L1 | Low | Quadratic regex in the `apply_patch` header parser | Open |
+| M1 | Medium | Report is written through symlinks; default output path lives in the (possibly untrusted) cwd | Fixed (a817212) |
+| M2 | Medium | Secrets in shell commands and prompts are embedded in the report by default | Fixed (a817212) |
+| L1 | Low | Quadratic regex in the `apply_patch` header parser | Fixed (a817212) |
 | L2 | Low | `--redact` keeps identifying metadata (absolute cwd, home dir, out-of-repo paths) | Open |
 | L3 | Low | No Content-Security-Policy in the report (defense in depth) | Open |
-| L4 | Low | Log-derived strings are printed to the terminal unsanitized | Open |
+| L4 | Low | Log-derived strings are printed to the terminal unsanitized | Fixed (a817212) |
 | L5 | Low | Crafted `.git` metadata in the target dir can widen the report scope | Open |
 | L6 | Low | JSONL lines are read with no size cap | Open |
 | I1-I9 | Info | Audit, secrets, network, XSS verification, licenses and minor notes | - |
 
-No High findings. Two Medium findings are open.
+No High findings. Both Medium findings (M1, M2) and L1, L4 are fixed; L2, L3, L5, L6 remain open.
 
 ## Medium
 
 ### M1. Report is written through symlinks; default output path lives in the cwd
+
+**Status: Fixed in `a817212`.** `src/output.ts` (`writeReportFile`) `lstat`s the output path and refuses symlinks and non-regular files, then opens it with `O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW` (an `ELOOP` from the race window is also refused) and mode `0600` (an existing file is `chmod`ed to `0600`). `test/cli.e2e.test.ts` plants a symlink at the default output path and asserts exit code 1, the refusal message, and that the target is untouched; another test asserts mode `0600`.
 
 `src/cli.ts:55-56` writes the report with `mkdir(..., { recursive: true })` and a plain
 `writeFile(opts.out, body)`, which follows a symlink at the target path and truncates whatever it points
@@ -54,6 +56,8 @@ Fix (`src/cli.ts:55-56`):
   the target is untouched and the exit code is 1.
 
 ### M2. Secrets in shell commands and prompts are embedded by default
+
+**Status: Fixed in `a817212`.** `scrubSecrets()` in `src/redact.ts` masks the listed token shapes (sk-/sk-ant-, gh[pousr]_, github_pat_, xox?-, AKIA, AIza, PEM private keys including the body, `Authorization: Bearer|Basic`, bare `Bearer <token>`, and secret-named `NAME=value` assignments with the name kept). It is applied at parse time, always, to Claude/Codex prompts (capped at 4000 chars before scrubbing), commands (after the 500-char cap) and Agent/Task spawn descriptions. All patterns are linear (the assignment matcher checks the name in a callback instead of using nested quantifiers); `test/redact.test.ts` covers each shape, false positives and adversarial inputs. `renderHtml` no longer embeds `command` (search uses `summary`), the report is written `0600`, and the CLI prints `note: report contains prompt and command text ...; use --redact before sharing` when `--redact` is off. README Privacy section updated.
 
 Without `--redact`, every event keeps up to 200 characters of prompt text and every shell event keeps the
 command twice: `summary` (200 chars) and `command` (500 chars):
@@ -90,6 +94,8 @@ Fix:
 ## Low
 
 ### L1. Quadratic regex in the `apply_patch` header parser
+
+**Status: Fixed in `a817212`.** Header regex is now `/^\*\*\* (Add File|Update File|Delete File|Move to): (.*)$/` with `trim()` and empty paths skipped; the `gitdir:` parser in `src/repo.ts` got the same treatment. `test/applyPatch.test.ts` parses a header with 200,000 spaces in well under 200 ms.
 
 `src/parsers/applyPatch.ts:8`: `/^\*\*\* (Add File|Update File|Delete File|Move to): (.+?)\s*$/`. The lazy
 `(.+?)` followed by `\s*$` backtracks over a long run of whitespace for every extra character, giving
@@ -131,6 +137,8 @@ without `'unsafe-inline'`; styles set from JS through `element.style` are not af
 come before the `<style>` and `<script>` elements.
 
 ### L4. Log-derived strings printed to the terminal unsanitized
+
+**Status: Fixed in `a817212`.** `sanitizeTerminal()` in `src/summary.ts` replaces C0/C1 control characters with `?` on every summary line and on every CLI error message (`src/cli.ts`). Covered by `test/summary.test.ts`.
 
 `src/summary.ts:41` prints up to five parser notes to stderr. Notes include log file labels (directory
 and file names under the log dirs) and, for unrecognized Codex rollouts, the `cli_version` string taken
@@ -203,4 +211,4 @@ crashes. Consider skipping lines above a limit (e.g. 64 MB) with a parser note.
 
 ## Open High/Medium
 
-M1 and M2 are open. No High findings.
+None. M1 and M2 are fixed in `a817212`. No High findings.
