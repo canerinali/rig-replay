@@ -43,7 +43,9 @@ describe("renderHtml", async () => {
 
   it("embeds the data once and it round-trips", () => {
     expect(html.match(/id="rig-data"/g)).toHaveLength(1);
-    expect(embedded(html)).toEqual(JSON.parse(JSON.stringify(data)));
+    const withoutCommand = { ...data, events: data.events.map(({ command: _c, ...e }) => e) };
+    expect(embedded(html)).toEqual(JSON.parse(JSON.stringify(withoutCommand)));
+    expect(embedded(html).events.some((e) => "command" in e)).toBe(false);
   });
 
   it("never uses innerHTML in the client script", () => {

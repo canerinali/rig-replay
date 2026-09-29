@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -53,6 +53,31 @@ describe("rig-replay CLI (built)", () => {
     expect(stderr).toContain("estimated cost: $");
     expect(stderr).toContain("claude: 2 sessions (1 subagent)");
     expect(stderr).not.toMatch(/\bconflicts? on\b/i);
+  });
+
+  it("writes the report with mode 0600 and warns that text is not redacted", async () => {
+    const out = path.join(tmp, "private.html");
+    const { stderr } = await run("node", [CLI, ...demoArgs, "--out", out], { env, cwd: tmp });
+    expect((await stat(out)).mode & 0o777).toBe(0o600);
+    expect(stderr).toContain("use --redact before sharing");
+    const red = await run("node", [CLI, ...demoArgs, "--out", out, "--redact"], { env, cwd: tmp });
+    expect(red.stderr).not.toContain("use --redact before sharing");
+  });
+
+  it("refuses to write through a symlink at the default output path", async () => {
+    const dir = path.join(tmp, "planted");
+    await mkdir(path.join(dir, ".git"), { recursive: true });
+    const victim = path.join(tmp, "victim.txt");
+    await writeFile(victim, "precious\n");
+    await symlink(victim, path.join(dir, "rig-replay-report.html"));
+    const err = await run(
+      "node",
+      [CLI, "--claude-dir", path.join(DEMO, "claude", "projects"), "--codex-dir", path.join(DEMO, "codex")],
+      { env, cwd: dir },
+    ).catch((e: { code: number; stderr: string }) => e);
+    expect(err).toMatchObject({ code: 1 });
+    expect((err as { stderr: string }).stderr).toContain("refusing to write through symlink");
+    expect(await readFile(victim, "utf8")).toBe("precious\n");
   });
 
   it("prints valid JSON to stdout with --json", async () => {

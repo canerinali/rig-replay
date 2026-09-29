@@ -11,7 +11,11 @@ import {
   type UsageRecord,
 } from "../schema.js";
 import { parseTs } from "../time.js";
+import { scrubSecrets } from "../redact.js";
 import { oneLine, sha1 } from "../util.js";
+
+const MAX_TEXT = 4000;
+const promptText = (s: string) => oneLine(scrubSecrets(s.slice(0, MAX_TEXT)), 200);
 import { extractPatchPaths, type PatchOp } from "./applyPatch.js";
 
 export interface CodexParseOptions {
@@ -162,7 +166,7 @@ export async function parseCodexFile(file: string, opts: CodexParseOptions = {})
         }
         if (itype === "CommandExecution") {
           const evCwd = str(item.cwd) ?? cwd;
-          const command = commandText(item.command).slice(0, 500);
+          const command = scrubSecrets(commandText(item.command).slice(0, 500));
           const exit = item.exit_code;
           let ok: boolean | undefined;
           if (typeof exit === "number") ok = exit === 0;
@@ -215,7 +219,7 @@ export async function parseCodexFile(file: string, opts: CodexParseOptions = {})
             .filter((t): t is string => !!t)
             .join(" ");
           if (text.trim()) {
-            itemEvents.push(makeEvent(line, tsMs, cwd, { kind: "prompt", files: [], summary: oneLine(text, 200) }));
+            itemEvents.push(makeEvent(line, tsMs, cwd, { kind: "prompt", files: [], summary: promptText(text) }));
           }
         }
         continue;
@@ -245,7 +249,7 @@ export async function parseCodexFile(file: string, opts: CodexParseOptions = {})
       if (ptype === "user_message") {
         const text = str(payload.message) ?? "";
         if (text.trim()) {
-          legacyEvents.push(makeEvent(line, tsMs, cwd, { kind: "prompt", files: [], summary: oneLine(text, 200) }));
+          legacyEvents.push(makeEvent(line, tsMs, cwd, { kind: "prompt", files: [], summary: promptText(text) }));
         }
       }
       continue;
@@ -264,7 +268,7 @@ export async function parseCodexFile(file: string, opts: CodexParseOptions = {})
           continue;
         }
         const evCwd = str(args.workdir) ?? cwd;
-        const command = commandText(args.command ?? args.cmd).slice(0, 500);
+        const command = scrubSecrets(commandText(args.command ?? args.cmd).slice(0, 500));
         const ev = makeEvent(line, tsMs, evCwd, {
           kind: "shell",
           tool: name,

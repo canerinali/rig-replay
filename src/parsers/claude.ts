@@ -9,7 +9,12 @@ import {
   type UsageRecord,
 } from "../schema.js";
 import { parseTs } from "../time.js";
+import { scrubSecrets } from "../redact.js";
 import { lineCount, oneLine, sha1 } from "../util.js";
+
+/** Prompt text is capped before scrubbing so scrubbing stays cheap on huge pastes. */
+const MAX_TEXT = 4000;
+const promptText = (s: string) => oneLine(scrubSecrets(s.slice(0, MAX_TEXT)), 200);
 
 export interface ClaudeParseOptions {
   /** Label used in evidence pointers (e.g. "claude/-work-acme-api/<sid>.jsonl"); defaults to the file path. */
@@ -130,7 +135,7 @@ export async function parseClaudeFile(file: string, opts: ClaudeParseOptions = {
       const content = msg.content;
       if (typeof content === "string") {
         if (l.isMeta || isSkippedPrompt(content) || content.trim() === "") continue;
-        events.push({ ...base(0), kind: "prompt", files: [], summary: oneLine(content, 200) });
+        events.push({ ...base(0), kind: "prompt", files: [], summary: promptText(content) });
         continue;
       }
       if (!Array.isArray(content)) continue;
@@ -151,7 +156,7 @@ export async function parseClaudeFile(file: string, opts: ClaudeParseOptions = {
       if (!hasToolResult && !l.isMeta && texts.length > 0) {
         const text = texts.join(" ");
         if (!isSkippedPrompt(text) && text.trim() !== "") {
-          events.push({ ...base(0), kind: "prompt", files: [], summary: oneLine(text, 200) });
+          events.push({ ...base(0), kind: "prompt", files: [], summary: promptText(text) });
         }
       }
       continue;
@@ -247,7 +252,7 @@ function toolEvent(
   }
 
   if (name === "Bash") {
-    const command = (str(input.command) ?? "").trim().slice(0, 500);
+    const command = scrubSecrets((str(input.command) ?? "").trim().slice(0, 500));
     return { ...base, kind: "shell", tool: name, files: [], command, summary: oneLine(command, 200) };
   }
 
@@ -264,7 +269,7 @@ function toolEvent(
       kind: "tool_call",
       tool: name,
       files: [],
-      summary: oneLine(`spawn ${type}${desc ? `: ${desc}` : ""}`, 200),
+      summary: oneLine(scrubSecrets(`spawn ${type}${desc ? `: ${desc}` : ""}`.slice(0, MAX_TEXT)), 200),
     };
   }
 

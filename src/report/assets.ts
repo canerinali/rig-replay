@@ -122,7 +122,7 @@ export const CLIENT_JS = String.raw`
     if (!state.kinds[e.kind] || !state.lanes[e.laneId]) return false;
     if (state.file && e.files.indexOf(state.file) < 0) return false;
     if (state.q) {
-      var hay = (e.summary + ' ' + e.files.join(' ') + ' ' + (e.command || '') + ' ' + (e.tool || '') + ' ' + lanesById[e.laneId].label).toLowerCase();
+      var hay = (e.summary + ' ' + e.files.join(' ') + ' ' + (e.tool || '') + ' ' + lanesById[e.laneId].label).toLowerCase();
       if (hay.indexOf(state.q) < 0) return false;
     }
     return true;

@@ -5,7 +5,7 @@ export interface PatchPath {
   op: PatchOp;
 }
 
-const HEADER = /^\*\*\* (Add File|Update File|Delete File|Move to): (.+?)\s*$/;
+const HEADER = /^\*\*\* (Add File|Update File|Delete File|Move to): (.*)$/;
 
 const OPS: Record<string, PatchOp> = {
   "Add File": "add",
@@ -24,7 +24,8 @@ export function extractPatchPaths(patchText: string): PatchPath[] {
   for (const raw of patchText.split(/\r?\n/)) {
     const m = HEADER.exec(raw);
     if (!m) continue;
-    out.push({ path: m[2]!, op: OPS[m[1]!]! });
+    const p = m[2]!.trim();
+    if (p) out.push({ path: p, op: OPS[m[1]!]! });
   }
   return out;
 }

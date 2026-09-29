@@ -10,7 +10,12 @@ export function usdText(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
-/** The stderr summary printed by the CLI. */
+/** Replace C0/C1 control characters (ANSI/OSC escapes, newlines) so log-derived text cannot drive the terminal. */
+export function sanitizeTerminal(s: string): string {
+  return s.replace(/[\x00-\x1f\x7f-\x9f]/g, "?");
+}
+
+/** The stderr summary printed by the CLI (every line is sanitized). */
 export function summaryLines(data: ReportData, outLabel: string | null, cwd: string = process.cwd()): string[] {
   const s = data.stats;
   const lines: string[] = [];
@@ -45,5 +50,8 @@ export function summaryLines(data: ReportData, outLabel: string | null, cwd: str
     const rel = path.relative(cwd, outLabel);
     lines.push(`  -> ${rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? `./${rel}` : outLabel}`);
   }
-  return lines;
+  if (!data.options.redacted && data.events.length > 0) {
+    lines.push("  note: report contains prompt and command text (known secret shapes are masked); use --redact before sharing");
+  }
+  return lines.map(sanitizeTerminal);
 }

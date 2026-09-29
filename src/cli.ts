@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { Command, Option } from "commander";
 import { buildReport } from "./index.js";
 import { OptionsError, resolveOptions, type RawOptions } from "./options.js";
+import { UnsafeOutputError, writeReportFile } from "./output.js";
 import { renderHtml } from "./report/html.js";
-import { summaryLines } from "./summary.js";
+import { sanitizeTerminal, summaryLines } from "./summary.js";
 import { VERSION } from "./version.js";
 
 const program = new Command();
@@ -35,7 +34,7 @@ program
       opts = resolveOptions(raw);
     } catch (e) {
       if (e instanceof OptionsError) {
-        process.stderr.write(`rig-replay: ${e.message}\n`);
+        process.stderr.write(`${sanitizeTerminal(`rig-replay: ${e.message}`)}\n`);
         process.exitCode = 1;
         return;
       }
@@ -45,17 +44,17 @@ program
     try {
       data = await buildReport(opts);
     } catch (e) {
-      process.stderr.write(`rig-replay: ${(e as Error).message}\n`);
+      process.stderr.write(`${sanitizeTerminal(`rig-replay: ${(e as Error).message}`)}\n`);
       process.exitCode = 1;
       return;
     }
     const body = opts.json ? `${JSON.stringify(data, null, 2)}\n` : renderHtml(data);
     if (opts.out) {
       try {
-        await mkdir(path.dirname(opts.out), { recursive: true });
-        await writeFile(opts.out, body);
+        await writeReportFile(opts.out, body);
       } catch (e) {
-        process.stderr.write(`rig-replay: cannot write ${opts.out}: ${(e as Error).message}\n`);
+        const msg = e instanceof UnsafeOutputError ? e.message : `cannot write ${opts.out}: ${(e as Error).message}`;
+        process.stderr.write(`${sanitizeTerminal(`rig-replay: ${msg}`)}\n`);
         process.exitCode = 1;
         return;
       }
@@ -66,6 +65,6 @@ program
   });
 
 program.parseAsync(process.argv).catch((e: unknown) => {
-  process.stderr.write(`rig-replay: ${(e as Error).message}\n`);
+  process.stderr.write(`${sanitizeTerminal(`rig-replay: ${(e as Error).message}`)}\n`);
   process.exitCode = 1;
 });

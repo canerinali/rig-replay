@@ -28,6 +28,14 @@ describe("extractPatchPaths", () => {
     expect(extractPatchPaths(patch)).toEqual([{ path: "a.ts", op: "update" }]);
   });
 
+  it("trims header paths and stays linear on long whitespace runs", () => {
+    expect(extractPatchPaths("*** Update File:   a.ts   \n*** Add File:    ")).toEqual([{ path: "a.ts", op: "update" }]);
+    const evil = `*** Update File: ${" ".repeat(200_000)}x`;
+    const t0 = performance.now();
+    expect(extractPatchPaths(evil)).toEqual([{ path: "x", op: "update" }]);
+    expect(performance.now() - t0).toBeLessThan(200);
+  });
+
   it("returns nothing for non-patch text", () => {
     expect(extractPatchPaths("hello world")).toEqual([]);
     expect(extractPatchPaths("")).toEqual([]);

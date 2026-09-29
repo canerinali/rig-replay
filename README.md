@@ -97,7 +97,15 @@ Not in scope for v0.1: live/watch mode, agents other than Claude Code and Codex 
 
 ## Privacy
 
-rig-replay reads local log files only. There is no network, no telemetry and no child processes. The HTML report is fully self-contained: it loads no scripts, fonts, images or stylesheets from anywhere, so it can be opened offline from `file://`. The report does contain your prompts, commands and file paths (use `--redact` to strip prompt and command text), so treat it like the logs it came from.
+rig-replay reads local log files only. There is no network, no telemetry and no child processes. The HTML report is fully self-contained: it loads no scripts, fonts, images or stylesheets from anywhere, so it can be opened offline from `file://`.
+
+What ends up in the report:
+
+- **Always masked.** Well-known credential shapes are replaced with `[redacted secret]` when prompts and commands are parsed, with or without `--redact`. That covers OpenAI/Anthropic `sk-` keys, GitHub tokens (`ghp_`, `gho_`, `github_pat_`, ...), AWS access key ids (`AKIA...`), Slack `xox?-` tokens, Google `AIza...` keys, PEM private keys, `Authorization: Bearer|Basic ...` and `Bearer <token>`, and `NAME=value` assignments where NAME looks like a secret (`*TOKEN*`, `*SECRET*`, `*PASSWORD*`, `*API_KEY*`, ...). This is pattern matching, so it cannot catch everything.
+- **Kept unless you pass `--redact`.** Prompt text and shell command text (up to 200 characters per event in the HTML), plus file paths and working directories. The CLI prints a reminder on stderr when `--redact` is off.
+- **Never embedded.** Tool outputs and file contents. Edits are reduced to line counts and a hash.
+
+The report file is written with mode `0600`, and rig-replay refuses to write through a symlink at the output path. Treat the report like the logs it came from, and use `--redact` before sharing it.
 
 ## Contributing
 

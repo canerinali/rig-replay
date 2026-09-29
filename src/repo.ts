@@ -36,8 +36,9 @@ export function isInside(child: string, parent: string): boolean {
 
 function readGitFile(gitFile: string): string | undefined {
   try {
-    const m = /^gitdir:\s*(.+?)\s*$/m.exec(readFileSync(gitFile, "utf8"));
-    return m?.[1];
+    const m = /^gitdir:(.*)$/m.exec(readFileSync(gitFile, "utf8"));
+    const v = m?.[1]?.trim();
+    return v ? v : undefined;
   } catch {
     return undefined;
   }
