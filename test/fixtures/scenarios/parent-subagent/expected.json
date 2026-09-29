@@ -1,0 +1,12 @@
+[
+  {
+    "kind": "possible-conflict",
+    "severity": "low",
+    "file": "src/api.ts"
+  },
+  {
+    "kind": "loop-edit",
+    "severity": "high",
+    "file": "src/util.ts"
+  }
+]

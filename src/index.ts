@@ -1,5 +1,7 @@
 import { DEFAULT_PRICES, estimate, loadPrices, type ModelUsage } from "./cost.js";
 import { findClaudeFiles, findCodexFiles, type LogFile } from "./discover.js";
+import { findPossibleConflicts } from "./heuristics/conflicts.js";
+import { findLoops } from "./heuristics/loops.js";
 import { mergeResults } from "./merge.js";
 import type { ResolvedOptions } from "./options.js";
 import { parseClaudeFile } from "./parsers/claude.js";
@@ -60,6 +62,10 @@ export async function buildReport(opts: ResolvedOptions): Promise<ReportData> {
   const cost = estimate(modelUsage, priceTable);
 
   const events = merged.events;
+  const warnings = [
+    ...findPossibleConflicts(events, merged.lanes, opts.windowMs),
+    ...findLoops(events, merged.lanes, opts.loopThreshold),
+  ].sort((a, b) => (a.severity === b.severity ? a.startMs - b.startMs : a.severity === "high" ? -1 : 1));
   const claudeLanes = merged.lanes.filter((l) => l.agent === "claude");
   const codexLanes = merged.lanes.filter((l) => l.agent === "codex");
   const firstMs = events.length ? events[0]!.tsMs : 0;
@@ -82,7 +88,7 @@ export async function buildReport(opts: ResolvedOptions): Promise<ReportData> {
     },
     lanes: merged.lanes,
     events,
-    warnings: [],
+    warnings,
     tokens: { byModel },
     cost: {
       lines: cost.lines,

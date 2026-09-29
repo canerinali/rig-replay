@@ -1,0 +1,11 @@
+[
+  {
+    "kind": "possible-conflict",
+    "severity": "high",
+    "file": "src/db.ts"
+  },
+  {
+    "kind": "loop-shell",
+    "severity": "high"
+  }
+]
