@@ -1,23 +1,66 @@
 # rig-replay
 
-rig-replay turns the local logs of every Claude Code and Codex session that worked in one repo into a single offline HTML timeline. It calls out **possible conflicts** (two agents or sessions editing the same file close together) and **loops** (the same command or edit repeated), each linked to the log lines that show it. It reads local files only and makes no network requests.
+**See what all your coding agents did in one repo, on one timeline, and catch the file two of them edited before you merge.**
+
+English · [Türkçe](.github/readme/README.tr.md) · [简体中文](.github/readme/README.zh-CN.md) · [Español](.github/readme/README.es.md) · [Português (BR)](.github/readme/README.pt-BR.md)
 
 <!-- badges -->
 
-**Install:** nothing to install, run it with `npx rig-replay` (Node.js 22 or newer).
+<!-- demo GIF: add .github/assets/demo.gif here once it is recorded -->
 
-**Usage:** `npx rig-replay --since 2d` inside your repo writes `./rig-replay-report.html`.
+rig-replay reads the local logs of every Claude Code and Codex session that worked in one repo and writes a single offline HTML timeline. It calls out **possible conflicts** (two agents or sessions editing the same file close together) and **loops** (the same command or edit repeated), each linked to the log lines that show it.
+
+```
+npx rig-replay --since 2d
+```
+
+Nothing to install (Node.js 22 or newer). Run it inside your repo; it writes `./rig-replay-report.html`.
+
+## Before / after
+
+**Before:** two agents in two terminals, logs in two formats, and you find out at merge time.
+
+```
+terminal 1  claude  "add pagination to the orders endpoint"   edits src/db.ts
+terminal 2  codex   "fix the flaky db test"                   edits src/db.ts, runs npm test 5x
+terminal 1  claude                                            edits src/db.ts again
+
+~/.claude/projects/-work-acme-api/*.jsonl        one format, one file per session
+~/.codex/sessions/2026/09/20/rollout-*.jsonl     another format, another place
+
+...at merge time: "who changed the query in src/db.ts?"
+```
+
+**After:** one command, one timeline, and the warning is waiting for you.
+
+```
+$ npx rig-replay --since 2d
+rig-replay: repo /work/acme-api (since 2026-09-19)
+  claude: 2 sessions (1 subagent), 21 events   codex: 2 sessions, 13 events
+  1 possible conflict, 1 loop (edits observed in logs)
+  estimated cost: $0.20 (price table: built-in, as of 2026-09-29)
+  -> ./rig-replay-report.html
+  note: report contains prompt and command text (known secret shapes are masked); use --redact before sharing
+
+In the report:
+  HIGH  Possible conflict on src/db.ts: claude 5b0c1d2e and codex 01a0e0df, interleaved within 9m
+  HIGH  Repeated command: npm test -- db: codex 01a0e0df ran it 5x in 12m, 4 failed
+```
+
+The "after" output comes from the bundled synthetic demo logs ([examples/README.md](examples/README.md)).
 
 ## Features
 
-- **One repo, all agents, one timeline.** Claude Code sessions (including subagents) and Codex CLI sessions are interleaved as lanes on a single SVG timeline. Linked git worktrees get their own lanes.
-- **Possible conflicts.** Two or more lanes that edited the same file with consecutive edits within `--window` (default 10m). High severity across agents or top-level sessions; low when it is a parent session and its own subagents. `interleaved` is flagged when edits went A, B, A.
-- **Loops.** The same shell command run `--loop-threshold` times (default 4) within 30 minutes in one lane, or the same file edited that often. Failed runs, identical edits and reverts raise the severity. Read-only commands (`ls`, `cat`, `rg`, `git status`, ...) are ignored.
-- **Evidence links.** Every warning links to the exact events, and every event shows its source `file:line` in the logs.
-- **Filters.** By file (with edit counts), event kind, lane and free text. Filters apply to both the timeline and the table.
-- **Estimated cost.** Tokens per model plus an estimated cost, shown next to the price table that produced it. Override it with `--prices`.
-- **Self-contained output.** One HTML file with inline CSS and JS, and no external URLs. `--json` writes the raw data instead.
-- **`--redact`.** Replaces prompt and command text with length placeholders so you can share a report. File paths are kept.
+- One HTML timeline for every Claude Code and Codex CLI session in a repo
+- Subagents and linked git worktrees get their own lanes
+- **Possible conflict** warnings when two lanes edit the same file close together
+- **Loop** warnings for the same command or edit repeated, weighted up by failures and reverts
+- Every warning links to the exact events, and every event shows its source `file:line`
+- Filter by file, event kind, lane or free text, on both the timeline and the table
+- Estimated token cost per model, shown next to the price table that produced it
+- `--redact` replaces prompt and command text so a report can be shared
+- `--json` writes the raw report data for scripts and `jq`
+- Local only: no network, no telemetry, no child processes, one self-contained file
 
 ## Example output
 
@@ -30,6 +73,7 @@ rig-replay: repo /work/acme-api (all time)
   1 possible conflict, 1 loop (edits observed in logs)
   estimated cost: $0.20 (price table: built-in, as of 2026-09-29)
   -> ./examples/demo-report.html
+  note: report contains prompt and command text (known secret shapes are masked); use --redact before sharing
 ```
 
 The report then lists, for example:
@@ -89,11 +133,11 @@ A price file looks like this. Entries are checked in order, and `match` is a mod
 3. **Repo mapping.** An event belongs to the report when its `cwd` is inside the repo root or one of its linked worktrees (found by reading `.git` files and `.git/worktrees/*/gitdir`, without running `git`). File paths become repo-relative. Files outside the repo are shown but ignored by the heuristics.
 4. **Heuristics.** They run on tool-level events only:
    - **Attribution means edits observed in logs.** An edit that bypassed the agent's edit tools (for example `sed -i` or `cat > file` in a shell command, or a code generator) is invisible to rig-replay.
-   - **Conflicts are always "possible".** Two sessions editing the same file close together is worth a look, but it is not proof that work was lost. Conflicts are computed per worktree, and failed edits do not count.
-   - **Loops** need the threshold number of repeats within any 30-minute span in one lane.
+   - **Conflicts are always "possible".** Two or more lanes that edited the same file with consecutive edits within `--window` (default 10m). It is worth a look, but it is not proof that work was lost. Severity is high across agents or top-level sessions, and low when it is a parent session and its own subagents. `interleaved` is flagged when edits went A, B, A. Conflicts are computed per worktree, and failed edits do not count.
+   - **Loops.** The same shell command run `--loop-threshold` times (default 4) within any 30-minute span in one lane, or the same file edited that often. Failed runs, identical edits and reverts raise the severity. Read-only commands (`ls`, `cat`, `rg`, `git status`, ...) are ignored.
 5. **Estimated cost.** Tokens per model are multiplied by the price table (the built-in table was copied from the Anthropic and OpenAI public pricing pages on its `asOf` date). Claude cache reads and writes are billed separately. For Codex, cached input is billed at the cache-read price and the rest of the input at the input price. Models without a matching entry show "no price". The result is an **estimate**: plans, discounts, batch or regional pricing and anything not in the logs are not reflected.
 
-Not in scope for v0.1: live/watch mode, agents other than Claude Code and Codex CLI, line-level blame or diffs, git history correlation, cross-worktree overlap warnings, splitting Codex multi-agent threads into lanes, secret scanning (`--redact` is the only privacy control), a config file and a CI mode.
+Not in scope for v0.1: live/watch mode, agents other than Claude Code and Codex CLI, line-level blame or diffs, git history correlation, cross-worktree overlap warnings, splitting Codex multi-agent threads into lanes, secret scanning beyond the pattern masking described under Privacy, a config file and a CI mode.
 
 ## Privacy
 
