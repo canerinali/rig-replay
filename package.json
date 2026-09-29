@@ -1,0 +1,50 @@
+{
+  "name": "rig-replay",
+  "version": "0.1.0",
+  "description": "One offline HTML timeline of every Claude Code and Codex session that worked in a repo, with possible file conflicts and loops called out.",
+  "type": "module",
+  "bin": {
+    "rig-replay": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "test": "vitest run",
+    "example": "npm run build && node dist/cli.js --repo /work/acme-api --since all --claude-dir examples/demo-logs/claude/projects --codex-dir examples/demo-logs/codex --now 2026-09-21T00:00:00Z --out examples/demo-report.html"
+  },
+  "keywords": [
+    "claude-code",
+    "codex",
+    "ai-agents",
+    "timeline",
+    "logs",
+    "cli"
+  ],
+  "author": "canerinali",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "commander": "^14.0.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.2"
+  }
+}

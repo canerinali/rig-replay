@@ -1,0 +1,6 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+examples/demo-report.html
+rig-replay-report.html
